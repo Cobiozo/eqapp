@@ -1,0 +1,887 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum SupportedLanguage {
+  intl
+  pl
+  en
+  uk
+  de
+  lt
+}
+
+model Language {
+  id String @id @default(uuid())
+  name SupportedLanguage @unique
+  createdAt DateTime @default(now())
+
+  users User[]
+  workshops WorkshopItem[]
+  workshopDirectories WorkshopDirectory[]
+  workshopFiles WorkshopItemFile[]
+  boardDirectories BoardDirectory[]
+  boardItems BoardItem[]
+  boardFiles BoardItemFile[]
+  webinars Webinar[]
+  menuLinks MenuLink[]
+}
+
+enum RoleName {
+  CLIENT
+  CANDIDATE_PARTNER
+  PARTNER
+  LEADER
+  ADMIN
+}
+
+model Role {
+  id    String @id @default(uuid())
+  name      RoleName @unique
+  users     User[]
+  permissions Permission[]
+
+  activity UserActivity[]
+  notifications Notification[]
+  pushNotificationsSendToRole PushNotification[] @relation("RoleRelatedPushNotifications")
+  pushNotificationDescribingRoleChange PushNotification[] @relation("RoleChangePushNotifications")
+
+  supportedWorkshops WorkshopItem[]
+  supportedWorkshopCategories WorkshopDirectory[]
+  supportedWebinars Webinar[]
+  supportedMenuLinks MenuLink[]
+}
+
+enum PermissionName {
+  adminPanelAccess
+
+  adminUsersRead
+  adminUsersEdit
+  adminUsersRemove
+  adminUsersActivate
+
+  adminWorkshopsRead
+  adminWorkshopsEdit
+  adminWorkshopsRemove
+  adminWorkshopsCreate
+
+  adminPagesRead
+  adminPagesEdit
+  adminPagesRemove
+  adminPagesCreate
+
+  adminWebinarsRead
+  adminWebinarsEdit
+  adminWebinarsRemove
+  adminWebinarsCreate
+
+  adminRolesRead
+  adminRolesEdit
+
+  adminAnnouncementsRead
+  adminAnnouncementsEdit
+  adminAnnouncementsRemove
+  adminAnnouncementsCreate
+
+  adminNotificationsRead
+  adminNotificationsEdit
+
+  adminCustomNotificationsRead
+  adminCustomNotificationsEdit
+  adminCustomNotificationsRemove
+  adminCustomNotificationsCreate
+
+  adminProtegesPromoteToLEADER
+  adminProtegesPromoteToADMIN
+  adminProtegesDemoteToLEADER
+  adminProtegesDemoteToPARTNER
+  adminProtegesChangeMentor
+
+  adminProductsRead
+  adminProductsEdit
+  adminProductsRemove
+  adminProductsCreate
+
+  adminProductsCategoryRead
+  adminProductsCategoryEdit
+  adminProductsCategoryRemove
+  adminProductsCategoryCreate
+
+  adminPostsRead
+  adminPostsEdit
+  adminPostsRemove
+  adminPostsCreate
+
+  adminCertificatesRead
+  adminCertificatesEdit
+  adminCertificatesRemove
+  adminCertificatesCreate
+
+  adminFaqsRead
+  adminFaqsEdit
+  adminFaqsRemove
+  adminFaqsCreate
+
+  adminCandidateQuizRead
+  adminCandidateQuizEdit
+  adminCandidateQuizRemove
+  adminCandidateQuizCreate
+
+  adminSystemPersonalizationRead
+  adminSystemPersonalizationEdit
+
+  customWorkshopsRead
+  customWorkshopsEdit
+  customWorkshopsRemove
+  customWorkshopsCreate
+
+  protegesInvite
+  protegesRead
+  protegesRemove
+  protegesChangeMentor
+  workshopsRead
+  workshopsCreate
+  webinarsAccess
+  productsAccess
+  chatAccess
+}
+
+model Permission {
+  id    String @id @default(uuid())
+  name      PermissionName @unique
+  roles     Role[]
+  menuLinks MenuLink[]
+}
+
+model User {
+  id    String @id @default(uuid())
+  firstName String
+  lastName String
+  email String @unique
+  avatar String?
+  emailVerified Boolean @default(false)
+  verified Boolean
+  phone String
+  eqId String @unique
+  eqShopUrl String @default("https://eqology.com/")
+  pwaSubLastRefreshedAt DateTime?
+
+  language Language @relation(fields: [languageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  languageId String
+  
+  role Role  @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  roleId String
+
+  mentorId String?
+  mentor   User?   @relation("MentorProteges", fields: [mentorId], references: [id], onDelete: SetNull)
+  proteges  User[]  @relation("MentorProteges")
+
+  password Password?
+  workshops UserWorkshop[]
+  activity UserActivity[]
+
+  readNotifications UserReadNotification[]
+  webPushSubscription Json @default("{}")
+  readPushNotifications UserReadPushNotification[]
+  seenPushNotifications UserSeenPushNotification[]
+  pushNotifications PushNotification[]
+  pushNotificationDescribingMentorChange PushNotification[] @relation("MentorPushNotifications")
+  pushNotificationDescribingUser PushNotification[] @relation("PushNotificationsDescribingUser")
+  protegesTree UserProtegesTree?
+  mentorsTree UserMentorsTree?
+  readAnnouncements Announcement[] @relation("AnnouncementSeenBy")
+  customWorkshops WorkshopItem[]
+  customWorkshopCategories WorkshopDirectory[]
+  subscribedWebinars UserWebinar[]
+  attendedWebinars UserAttendedWebinar[]
+  products UserProduct[]
+  graduatedCandidateQuiz CandidateQuiz[]
+  chatRooms ChatRoom[]
+  chatMessages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ActivityType {
+  REGISTRATION
+  ACTIVATION
+  WORKSHOP_START
+  WORKSHOP_FINISH
+  PROMOTION
+  DEMOTION
+  WEBINAR_SUBSCRIPTION
+  WEBINAR_PRESENCE
+}
+
+model UserActivity {
+  id    String @id @default(uuid())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId String
+  type ActivityType
+
+  workshop WorkshopItem? @relation(fields: [workshopId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  workshopId String?
+
+  role Role? @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  roleId String?
+
+  webinar Webinar? @relation(fields: [webinarId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  webinarId String?
+
+  createdAt DateTime @default(now())
+}
+
+model UserProtegesTree {
+  id    String @id @default(uuid())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+  tree Json
+  createdAt DateTime @default(now())
+}
+
+model UserMentorsTree {
+  id    String @id @default(uuid())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+  tree Json
+  createdAt DateTime @default(now())
+}
+
+model Password {
+  hash   String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId String @unique
+}
+
+model UserWorkshop {
+  id String @id @default(uuid())
+  done Boolean @default(false)
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workshopId String
+  workshop WorkshopItem @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserReadNotification {
+  id String @id @default(uuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  notificationId String
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+}
+
+model UserReadPushNotification {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushNotificationId String
+  pushNotification PushNotification @relation(fields: [pushNotificationId], references: [id], onDelete: Cascade)
+}
+
+model UserSeenPushNotification {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushNotificationId String
+  pushNotification PushNotification @relation(fields: [pushNotificationId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  DANGER
+}
+
+model Notification {
+  id String @id @default(uuid())
+  type NotificationType
+  content NotificationContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId String
+
+  roles Role[]
+  readBy UserReadNotification[]
+  createdAt DateTime @default(now())
+  showAt DateTime
+}
+
+enum NotificationContentType {
+  PROMOTION
+  DEMOTION
+  USER_REGISTRATION
+  MENTOR_CHANGE
+  ACCOUNT_SUSPENSION
+  WEBINAR_STARTS_SOON
+  WEBINAR_STARTS_IN_10_MINUTES
+  WEBINAR_STARTS_NOW
+}
+
+model NotificationContent {
+  id String @id @default(uuid())
+  name String
+  title Json
+  description Json
+  type NotificationContentType @unique
+
+  notifications Notification[]
+  pushNotifications PushNotification[]
+  createdAt DateTime @default(now())
+}
+
+model PushNotification {
+  id String @id @default(uuid())
+  content NotificationContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId String
+  roles Role[] @relation("RoleRelatedPushNotifications")
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+  workshop WorkshopItem? @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  workshopId String?
+  role Role? @relation("RoleChangePushNotifications", fields: [roleId], references: [id], onDelete: Cascade)
+  roleId String?
+  mentorId String?
+  mentor   User?   @relation("MentorPushNotifications", fields: [mentorId], references: [id], onDelete: Cascade)
+  relatedUser User? @relation("PushNotificationsDescribingUser", fields: [relatedUserId], references: [id], onDelete: Cascade)
+  relatedUserId String?
+  webinar Webinar? @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+  webinarId String?
+
+  readBy UserReadPushNotification[]
+  seenBy UserSeenPushNotification[]
+  
+  showAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model UsefulLink {
+  id String @id @default(uuid())
+  name Json
+  link String
+  createdAt DateTime @default(now())
+}
+
+enum Icon {
+  HOME
+  BELL
+  ACADEMY
+  CERTIFICATE
+  LIST
+  MOVIE
+  PROFILE
+  CROWN
+  KEY
+  PATHS
+  USERS
+  NOTIFICATION
+  CALENDAR
+  LINK
+  EXIT
+  HEART
+  LIKE
+  STATS
+  CONFIG
+  WORKSHOP
+  INFO
+  FB
+  INSTAGRAM
+  SPORT
+  MEDITATION
+  CHAT
+  TROPHY
+  STAR
+  CHALLENGE
+  MAIL
+  VIDEO
+  BOOK
+  PAPER
+  FILE
+  TEXT
+  PLUS
+  MINUS
+  CHECK
+  MUSIC
+  CROSS
+  ARROW_LEFT
+  ARROW_RIGHT
+  ARROW_UP
+  ARROW_DOWN
+  LOCK_OPEN
+  LOCK_CLOSED
+  PIN
+  PIN_TWO
+  CHART_UP
+  CHART_DOWN
+  CHART_ALT
+  TOOLS
+  BOMB
+  DYNAMITE
+  DIAMOND
+  CASH
+  CASH_TWO
+  GOLD
+  BUS
+  CAR
+  TAXI
+  BOAT
+  PLANE
+  BIKE
+  SMARTPHONE
+  LAPTOP
+  DESKTOP
+  PHONE_OLD
+  KEYBOARD
+  CAMERA
+  COMPASS
+  ALARM
+  WOMAN
+  MAN
+  CART
+  FILES
+  FIRE
+}
+
+enum PageType {
+  BOARD
+  BOARD_ITEM
+}
+
+model Page {
+  id String @id @default(uuid())
+  name String
+  createdAt DateTime @default(now())
+  type PageType
+
+  relatedBoard BoardDirectory?
+  relatedBoardItem BoardItem?
+  relatedMenuLinks MenuLink[]
+}
+
+enum BoardColor {
+  PRIMARY
+  PRIMARY_LIGHTER
+  ORANGE
+  RED
+  GREEN
+}
+
+model BoardDirectory {
+  id String @id @default(uuid())
+  name Json
+  description Json @default("{}")
+  icon Icon?
+  priority Int @default(0)
+  removable Boolean @default(true)
+  color BoardColor @default(PRIMARY)
+
+  items BoardItem[] 
+  subDirectories BoardDirectory[] @relation("SubDirectories")
+  parentDirectory BoardDirectory? @relation("SubDirectories", fields: [parentDirectoryId], references: [id], onDelete: Cascade)
+  parentDirectoryId String?
+  page Page? @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId String? @unique
+
+  supportedLanguages Language[]
+
+  createdAt DateTime @default(now())
+}
+
+enum BoardItemType {
+  LINK
+  ADVANCED
+}
+
+model BoardItem {
+  id String @id @default(uuid())
+  type BoardItemType
+  icon Icon?
+  name Json
+  text Json?
+  link Json?
+  color BoardColor @default(PRIMARY)
+  files BoardItemFile[]
+  videos BoardItemVideo[]
+  images BoardItemImage[]
+  priority Int @default(0)
+  removable Boolean @default(true)
+
+  directory BoardDirectory? @relation(fields: [directoryId], references: [id], onDelete: Cascade)
+  directoryId String?
+  page Page? @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId String? @unique
+
+  supportedLanguages Language[]
+
+  createdAt DateTime @default(now())
+}
+
+model BoardItemFile {
+  id String @id @default(uuid())
+  name String
+  title String
+  type String
+  priority Int @default(0)
+  language Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  languageId String
+
+  boardItem BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+  boardItemId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BoardItemVideo {
+  id String @id @default(uuid())
+  url String
+  priority Int @default(0)
+  
+  boardItem BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+  boardItemId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BoardItemImage {
+  id String @id @default(uuid())
+  name String
+  priority Int @default(0)
+
+  boardItem BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+  boardItemId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkshopDirectory {
+  id String @id @default(uuid())
+  name Json
+  description Json @default("{}")
+  icon Icon?
+  image String @default("")
+  priority Int @default(0)
+
+  items WorkshopItem[]
+  subDirectories WorkshopDirectory[] @relation("WorkshopSubDirectories")
+  parentDirectory WorkshopDirectory? @relation("WorkshopSubDirectories", fields: [parentDirectoryId], references: [id], onDelete: Cascade)
+  parentDirectoryId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  supportedLanguages Language[]
+  supportedRoles Role[]
+
+  createdAt DateTime @default(now())
+}
+
+model WorkshopItem {
+  id String @id @default(uuid())
+  icon Icon?
+  name Json
+  description Json?
+  url String
+  files WorkshopItemFile[]
+  priority Int @default(0)
+  poster String @default("")
+
+  directory WorkshopDirectory? @relation(fields: [directoryId], references: [id], onDelete: Cascade)
+  directoryId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+
+  supportedLanguages Language[]
+  supportedRoles Role[]
+
+  pushNotifications PushNotification[]
+  userActivities UserActivity[]
+  userWorkshops UserWorkshop[]
+
+  createdAt DateTime @default(now())
+}
+
+model WorkshopItemFile {
+  id String @id @default(uuid())
+  name String
+  title String
+  type String
+  priority Int @default(0)
+  language Language @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  languageId String
+
+  workshopItem WorkshopItem @relation(fields: [workshopItemId], references: [id], onDelete: Cascade)
+  workshopItemId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Announcement {
+  id String @id @default(uuid())
+  title Json
+  description Json
+  startAt DateTime
+  seenBy User[] @relation("AnnouncementSeenBy")
+  notificationSent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+enum MenuLinkType {
+  SYSTEM
+  CUSTOM
+}
+
+enum MenuLinkVariant {
+  INTERNAL
+  EXTERNAL
+}
+
+model MenuLink {
+  id String @id @default(uuid())
+  name Json
+  type MenuLinkType
+  variant MenuLinkVariant
+  url String?
+  icon Icon
+  priority Int @default(0)
+  supportedLanguages Language[]
+  supportedRoles Role[]
+  permission Permission? @relation(fields: [permissionId], references: [id], onDelete: SetNull)
+  permissionId String?
+
+  page Page? @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId String?
+
+  createdAt DateTime @default(now())
+}
+
+enum WebinarVariant {
+  CLIENT
+  BUSINESS
+}
+
+model Webinar {
+  id String @id @default(uuid())
+  cmId Int
+  title Json
+  description Json
+  presenter String
+  variant WebinarVariant
+  isExternal Boolean @default(false)
+  startAt DateTime
+  embedUrl String?
+  embedCode String? @db.Text
+  expired Boolean @default(false)
+  checked Boolean @default(false)
+  isWorkshop Boolean @default(false)
+  poster String @default("")
+
+  supportedLanguages Language[]
+  supportedRoles Role[]
+
+  activity UserActivity[]
+  pushNotifications PushNotification[]
+  subscribedUsers UserWebinar[]
+  attendedUsers UserAttendedWebinar[]
+
+  createdAt DateTime @default(now())
+}
+
+model UserWebinar {
+  id String @id @default(uuid())
+  url String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webinarId String
+  webinar Webinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserAttendedWebinar {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webinarId String
+  webinar Webinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  time Int
+}
+
+model ProductCategory {
+  id String @id @default(uuid())
+  name Json
+  image String
+  imageBig String @default("")
+  descriptionBefore Json
+  descriptionAfter Json
+  priority Int @default(0)
+
+  products Product[]
+  faqs Faq[]
+  posts Post[]
+
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id String @id @default(uuid())
+  name Json
+  description Json
+  price Json
+  priceOld Json @default("{}")
+  image String
+  priority Int @default(0)
+
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId String
+  users UserProduct[]
+
+  createdAt DateTime @default(now())
+}
+
+model UserProduct {
+  id String @id @default(uuid())
+  url String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Post {
+  id String @id @default(uuid())
+  title Json
+  content Json
+  image String
+  productCategory ProductCategory? @relation(fields: [productCategoryId], references: [id], onDelete: Cascade)
+  productCategoryId String?
+
+  createdAt DateTime @default(now())
+}
+
+model Certificate {
+  id String @id @default(uuid())
+  title Json
+  description Json
+  image String
+  url String
+  priority Int @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+model Faq {
+  id String @id @default(uuid())
+  question Json
+  answer Json
+  priority Int @default(0)
+  productCategory ProductCategory @relation(fields: [productCategoryId], references: [id], onDelete: Cascade)
+  productCategoryId String
+
+  createdAt DateTime @default(now())
+}
+
+model CandidateQuiz {
+  id String @id @default(uuid())
+  name Json
+  movieUrl String
+  questions CandidateQuizQuestion[]
+  graduateMinScore Int
+  priority Int @default(0)
+
+  graduatedUsers User[]
+
+  createdAt DateTime @default(now())
+}
+
+model CandidateQuizQuestion {
+  id String @id @default(uuid())
+  question Json
+  answers CandidateQuizAnswer[]
+  quiz CandidateQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId String
+  priority Int @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+model CandidateQuizAnswer {
+  id String @id @default(uuid())
+  answer Json
+  isCorrect Boolean
+  question CandidateQuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  priority Int @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+enum PersonalizedContentType {
+  WHAT_ARE_YOU_DOING_HERE
+  BEFORE_CANDIDATE_REGISTER
+  BEFORE_CANDIDATE_QUIZ
+  CLIENT_WEBINAR_FREETIME_PASSED
+}
+
+model PersonalizedContent {
+  id String @id @default(uuid())
+  name String
+  title Json
+  content Json
+  type PersonalizedContentType @unique
+
+  createdAt DateTime @default(now())
+}
+
+model ShortLink {
+  id String @id @default(uuid())
+  link String @unique
+  target String
+  createdAt DateTime @default(now())
+}
+
+model ChatRoom {
+  id String @id @default(uuid())
+  name Json
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+}
+
+model ChatMessage {
+  id String @id @default(uuid())
+  message String @db.Text
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,8 @@
+node_modules
+
+/.cache
+.env
+/app/config.ts
+/build
+/public/build
+/psd
